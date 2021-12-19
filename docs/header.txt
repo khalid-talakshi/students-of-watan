@@ -1,0 +1,139 @@
+=========================================================================================
+=========================================================================================
+
+=========================================================================================
+=========================================================================================
+#ifndef SUBJECT_H
+#define SUBJECT_H
+#include <vector>
+
+template <typename InfoType, typename PhaseType> class Observer;
+class Cell;
+class Display;
+class Player;
+
+template <typename InfoType, typename PhaseType> class Subject {
+        std::vector<Observer<InfoType, PhaseType>*> observers;
+        PhaseType phase;
+        protected:
+                void setPhase(PhaseType currentPhase);
+        public:
+                void attach(Observer<InfoType, PhaseType> *observer);
+                void notifyObservers();
+                virtual InfoType getInfo() const = 0;
+                PhaseType getPhase() const;
+};
+
+template <typename InfoType, typename PhaseType>
+void Subject<InfoType, PhaseType>::attach(Observer<InfoType, PhaseType> *observer) {
+        observers.emplace_back(observer);
+}
+
+template <typename InfoType, typename PhaseType>
+void Subject<InfoType, PhaseType>::notifyObservers() {
+        for (auto &observer : observers) observer->notify(*this);
+}
+
+template <typename InfoType, typename PhaseType>
+void Subject<InfoType, PhaseType>::setPhase(PhaseType currentPhase) {
+        phase = currentPhase;
+}
+
+template <typename InfoType, typename PhaseType>
+void Subject<InfoType, PhaseType>::getPhase() const {
+        return phase;
+}
+#endif
+=========================================================================================
+=========================================================================================
+#ifndef OBSERVER_H
+#define OBSERVER_H
+
+template <typename InfoType, typename PhaseType> class Subject;
+class Cell;
+class Tile;
+
+template <typename InfoType, typename PhaseType> class Observer {
+        public:
+                virtual void notify(Subject<InfoType, PhaseType> &notifier) = 0;
+                virtual ~Observer() = default;
+};
+#endif
+=========================================================================================
+=========================================================================================
+#ifndef CELL_H
+#define CELL_H
+#include "observer.h"
+#include "subject.h"
+#include "phase.h"
+#include "info.h"
+#include "player.h"
+
+enum class CellType { edge, vertex };
+enum class Progress { none, goals, assignment, midterm, exam };
+
+class Cell : public Subject<Info, Phase>, public Observer<Info, Phase> {
+        CellType cellType;
+        int cellPosition;
+        Colour playerColour = Colour::NoColour;
+        Progress cellProgress = Progress::empty;
+        public:
+                Cell(CellType cellType, int cellPosition);
+                void updateProgress(Progress progress);
+                void notify(Subject<Info, Phase> &notifier) override;
+                Info getInfo() const override;
+};
+#endif
+=========================================================================================
+=========================================================================================
+
+=========================================================================================
+=========================================================================================
+#ifndef DISPLAY_H
+#define DISPLAY_H
+#include <iostream>
+#include <vector>
+#include "observer.h"
+#include "subject.h"
+#include "phase.h"
+#include "info.h"
+
+class Display: public Observer<Info, Phase> {
+        std::vector<std::vector<char>> theDisplay;
+        public:
+                Display();
+                void notify(Subject<Info, Phase> &notifier) override;
+
+                friend std::ostream &operator<<(std::ostream &out, const Display &display);
+};
+#endif
+=========================================================================================
+=========================================================================================
+#ifndef PLAYER_H
+#define PLAYER_H
+#include <vector>
+#include "observer.h"
+#include "subject.h"
+#include "phase.h"
+#include "info.h"
+
+class Cell;
+
+enum class Colour { NoColour, Blue, Red, Orange, Yellow };
+
+class Player: public Observer<Info, Phase> {
+        std::vector<Cell*> completedCriteria;
+        std::vector<Cell*> completedGoals;
+        Resources resources;
+        Colour colour;
+        public:
+                void notify(Subject<Info, Phase> &notifier) override;
+                int rollDice(bool loaded, bool loadedRoll);
+                void getResources();
+                void addGoals();
+                void addCriteria();
+                void updateCriteria();
+};
+#endif
+=========================================================================================
+=========================================================================================

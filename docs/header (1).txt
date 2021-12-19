@@ -1,0 +1,208 @@
+=========================================================================================
+=========================================================================================
+#ifndef PHASE_H
+#define PHASE_H
+
+//Phase carries the information of the current command
+//a distribute resource command will trigger a Phase with the resource type of the resource
+//being distributed, not the resource of the Cell since Cells do not have resources
+
+enum class CellType { None, Edge, Vertex };
+enum class Progress { None, Goals, Assignment, Midterm, Exam };
+enum class Colour { NoColour, Blue, Red, Orange, Yellow };
+enum class TurnPhase { Roll, DistributeResources, MoveGeese, Trade, Progress };
+enum class ResourceType { None, Tutorial, Study, Caffeine, lab, lecture };
+
+struct Phase {
+        int position;
+        Colour currentPlayer;
+        TurnPhase phase;
+        CellType cellType;
+        Progress progress;
+        ResourceType resource;
+};
+#endif
+=========================================================================================
+=========================================================================================
+
+=========================================================================================
+=========================================================================================
+#ifndef BOARD_H
+#define BOARD_H
+#include <iostream>
+#include <vector>
+#include "cell.h"
+#include "tile.h"
+#include "display.h"
+#include "player.h"
+#include "resources.h"
+#include "observer.h"
+#include "phase.h"
+
+class Board {
+        std::vector<Cell> cells;
+        std::vector<Tile> tiles;
+        std::vector<Player> players;
+        Display *display = nullptr;
+        public:
+                ~Board();
+                void setObserver(Observer<State> *observer);
+                Colour checkWinner() const;
+                void initialize(int seed);
+                int rollDice(Colour::currentPlayer, bool loaded, int loadedRoll);
+                void distributeResources(int roll);
+                void moveGeese(int tilePosition, Colour::currentPlayer);
+                void tradeResources(Colour::currentPlayer, Colour::offerredPlayer, Resources given, Resources recieved);
+                void progressCell(Cell cell, Colour::currentPlayer);
+
+                friend std::ostream &operator<<(std::ostream &out, const Board &board);
+};
+#endif
+=========================================================================================
+=========================================================================================
+#ifndef SUBJECT_H
+#define SUBJECT_H
+#include <vector>
+
+template <typename PhaseType> class Observer;
+class Cell;
+class Display;
+class Player;
+
+template <typename PhaseType> class Subject {
+        std::vector<Observer<PhaseType>*> observers;
+        PhaseType phase;
+        protected:
+                void setPhase(PhaseType currentPhase);
+        public:
+                void attach(Observer<PhaseType> *observer);
+                void notifyObservers();
+                PhaseType getPhase() const;
+};
+
+template <typename PhaseType>
+void Subject<PhaseType>::attach(Observer<PhaseType> *observer) {
+        observers.emplace_back(observer);
+}
+
+template <typename PhaseType>
+void Subject<PhaseType>::notifyObservers() {
+        for (auto &observer : observers) observer->notify(*this);
+}
+
+template <typename PhaseType>
+void Subject<PhaseType>::setPhase(PhaseType currentPhase) {
+        phase = currentPhase;
+}
+
+template <typename PhaseType>
+void Subject<PhaseType>::getPhase() const {
+        return phase;
+}
+#endif
+=========================================================================================
+=========================================================================================
+#ifndef OBSERVER_H
+#define OBSERVER_H
+
+template <typename PhaseType> class Subject;
+class Cell;
+class Tile;
+
+template <typename PhaseType> class Observer {
+        public:
+                virtual void notify(Subject<PhaseType> &notifier) = 0;
+                virtual ~Observer() = default;
+};
+#endif
+=========================================================================================
+=========================================================================================
+#ifndef CELL_H
+#define CELL_H
+#include "observer.h"
+#include "subject.h"
+#include "phase.h"
+
+class Cell : public Subject<Phase>, public Observer<Phase> {
+        CellType cellType;
+        int cellPosition;
+        bool progressable = true;
+        Colour playerColour = Colour::NoColour;
+        Progress cellProgress = Progress::empty;
+        public:
+                Cell(CellType cellType, int cellPosition);
+                void updateProgress(Progress progress);
+                void notify(Subject<Phase> &notifier) override;
+                Colour cellOwner();
+};
+#endif
+=========================================================================================
+=========================================================================================
+#ifndef TILE_H
+#define TILE_H
+#include <vecotr>
+#include "subject.h"
+#include "phase.h"
+#include "resources.h"
+
+class Tile : public Subject<Phase> {
+        int tilePosition;
+        ReousrceType resource;
+        int resourceRoll;
+        bool goose;
+        public:
+                Tile(Resource resource, int resourceRoll, int tilePosition);
+                void distributeResources();
+                void toggleGoose();
+                vector<Colour> players();
+};
+#endif
+=========================================================================================
+=========================================================================================
+#ifndef DISPLAY_H
+#define DISPLAY_H
+#include <iostream>
+#include <vector>
+#include "observer.h"
+#include "subject.h"
+#include "phase.h"
+
+class Display: public Observer<Phase> {
+        std::vector<std::vector<char>> theDisplay;
+        public:
+                Display();
+                void notify(Subject<Phase> &notifier) override;
+
+                friend std::ostream &operator<<(std::ostream &out, const Display &display);
+};
+#endif
+=========================================================================================
+=========================================================================================
+#ifndef PLAYER_H
+#define PLAYER_H
+#include <vector>
+#include "observer.h"
+#include "subject.h"
+#include "phase.h"
+#include "resources.h"
+
+class Cell;
+
+class Player: public Observer<Phase> {
+        std::vector<Cell*> completedCriteria;
+        std::vector<Cell*> completedGoals;
+        Resources resources;
+        Colour colour;
+        bool diceIsLoaded;
+        int loadedRoll;
+        public:
+                void notify(Subject<Phase> &notifier) override;
+                int rollDice(bool loaded, bool loadedRoll);
+                void getResources();
+                void addGoals();
+                void addCriteria();
+                void updateCriteria();
+};
+#endif
+=========================================================================================
+=========================================================================================
